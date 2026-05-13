@@ -100,7 +100,6 @@ pipeline {
 
                     withDockerRegistry(
                         credentialsId: 'dockerhub-cred'
-'
                     ) {
 
                         sh '''
