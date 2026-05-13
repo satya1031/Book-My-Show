@@ -1,4 +1,5 @@
 pipeline {
+
     agent any
 
     tools {
@@ -18,15 +19,14 @@ pipeline {
             }
         }
 
-        stage('Checkout from Git') {
+        stage('Checkout from GitHub') {
             steps {
 
                 checkout scmGit(
                     branches: [[name: '*/main']],
                     extensions: [],
                     userRemoteConfigs: [[
-                        credentialsId: 'git-creds',
-                        url: 'https://github.com/Subhash-Rokkala/Book-My-Show.git'
+                        url: 'https://github.com/satya1031/Book-My-Show.git'
                     ]]
                 )
 
@@ -48,15 +48,19 @@ pipeline {
             }
         }
 
-        stage('Quality Gate') { 
-            steps { 
-                script { 
-                    waitForQualityGate abortPipeline: false, credentialsId: 'Sonar-token' 
-                } 
-            } 
+        stage('Quality Gate') {
+
+            steps {
+
+                script {
+
+                    waitForQualityGate abortPipeline: false
+                }
+            }
         }
 
         stage('Install Dependencies') {
+
             steps {
 
                 sh '''
@@ -65,43 +69,51 @@ pipeline {
                 ls -la
 
                 if [ -f package.json ]; then
+
                     rm -rf node_modules package-lock.json
+
                     npm install
+
                 else
+
                     echo "package.json not found!"
+
                     exit 1
                 fi
                 '''
             }
         }
 
-        stage('Trivy FS Scan') {
+        stage('Trivy File Scan') {
+
             steps {
+
                 sh 'trivy fs . > trivyfs.txt'
             }
         }
 
         stage('Docker Build & Push') {
+
             steps {
 
                 script {
 
                     withDockerRegistry(
-                        credentialsId: 'docker-creds',
-                        toolName: 'docker'
+                        credentialsId: 'docker-creds'
                     ) {
 
                         sh '''
-                        echo "Building Docker image..."
+
+                        echo "Building Docker Image..."
 
                         docker build --no-cache \
-                        -t subhashrokkala/bms:latest \
+                        -t satya1031/bms:latest \
                         -f bookmyshow-app/Dockerfile \
                         bookmyshow-app
 
-                        echo "Pushing Docker image..."
+                        echo "Pushing Docker Image..."
 
-                        docker push subhashrokkala/bms:latest
+                        docker push satya1031/bms:latest
                         '''
                     }
                 }
@@ -109,33 +121,38 @@ pipeline {
         }
 
         stage('Trivy Image Scan') {
+
             steps {
-                sh 'trivy image subhashrokkala/bms:latest > trivyimage.txt'
+
+                sh 'trivy image satya1031/bms:latest > trivyimage.txt'
             }
         }
 
         stage('Deploy Container') {
+
             steps {
 
                 sh '''
-                echo "Stopping old container..."
+
+                echo "Stopping Old Container..."
 
                 docker stop bms || true
+
                 docker rm bms || true
 
-                echo "Running new container..."
+                echo "Running New Container..."
 
                 docker run -d \
                 --restart=always \
                 --name bms \
                 -p 3000:3000 \
-                subhashrokkala/bms:latest
+                satya1031/bms:latest
 
-                echo "Checking running containers..."
+                echo "Checking Running Containers..."
 
                 docker ps -a
 
-                echo "Fetching container logs..."
+                echo "Fetching Logs..."
 
                 sleep 10
 
@@ -150,11 +167,13 @@ pipeline {
         always {
 
             emailext(
+
                 attachLog: true,
 
                 subject: "${currentBuild.result}: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
 
                 body: """
+
                 <h2>Jenkins Build Report</h2>
 
                 <p><b>Project:</b> ${env.JOB_NAME}</p>
@@ -164,12 +183,14 @@ pipeline {
                 <p><b>Status:</b> ${currentBuild.result}</p>
 
                 <p><b>Build URL:</b>
+
                 <a href="${env.BUILD_URL}">
                 ${env.BUILD_URL}
                 </a></p>
+
                 """,
 
-                to: 'mr.siddu1432@gmail.com',
+                to: 'emtysoul1031@gmail.com',
 
                 attachmentsPattern: 'trivyfs.txt,trivyimage.txt'
             )
