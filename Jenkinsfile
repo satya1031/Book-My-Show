@@ -99,7 +99,8 @@ pipeline {
                 script {
 
                     withDockerRegistry(
-                        credentialsId: 'docker-creds'
+                        credentialsId: 'dockerhub-cred
+'
                     ) {
 
                         sh '''
